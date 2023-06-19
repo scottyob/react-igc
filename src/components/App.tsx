@@ -1,26 +1,30 @@
-import React, { useState } from 'react'
+import React from 'react'
+import IGCParser from 'igc-parser'
+import { MapContainer, Polyline, TileLayer } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css';
 
 type Props = {
-  value?: number
+  igc: string
 }
-const MyCounter = ({ value = 0 }: Props) => {
-  const [counter, setCounter] = useState(value)
+const IgcViewer = ({ igc = '' }: Props) => {
+  const flight = IGCParser.parse(igc);
 
-  const onMinus = () => {
-    setCounter((prev) => prev - 1)
-  }
+  // const task = flight.task;
+  const position = { lat: flight.fixes[0].latitude, lng: flight.fixes[0].longitude };
+  const positions = flight.fixes.map(p => {
+    return {
+      lat: p.latitude,
+      lng: p.longitude
+    }
+  });
 
-  const onPlus = () => {
-    setCounter((prev) => prev + 1)
-  }
-
-  return (
-    <div>
-      <h1>Counter: {counter}</h1>
-      <button onClick={onMinus}>-</button>
-      <button onClick={onPlus}>+</button>
-    </div>
-  )
+  return <MapContainer style={{ display: "flex", flexGrow: 1 }} center={position} zoom={13} scrollWheelZoom={false}>
+    <TileLayer
+      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    />
+    <Polyline positions={positions} />
+  </MapContainer>
 }
 
-export default MyCounter
+export default IgcViewer

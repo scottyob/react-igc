@@ -1,3 +1,3 @@
-import MyCounter from './components/App'
+import IgcViewer from './components/App'
 
-export { MyCounter }
+export { IgcViewer }
