@@ -1,13 +1,6 @@
 import React from 'react'
 import { useRef, useEffect } from 'react'
-import { Entity,
-  Viewer,
-  CesiumComponentRef, 
-  PointGraphics,
-  Polyline,
-  PolylineGraphics,
-  WallGraphics,
-} from 'resium'
+import { Entity, Viewer, CesiumComponentRef, PointGraphics, WallGraphics } from 'resium'
 import {
   Cartesian3,
   JulianDate,
@@ -15,13 +8,11 @@ import {
   createWorldTerrain,
   Viewer as CesiumViewer,
   PolylineGlowMaterialProperty,
+  Color,
   LinearApproximation,
   TimeIntervalCollection,
   TimeInterval,
   CallbackProperty,
-  ConstantProperty,
-  ArcType,
-  Color,
 } from 'cesium'
 import IGCParser, { BRecord } from 'igc-parser'
 
@@ -78,6 +69,9 @@ export default function Igc3DViewer(props: Props) {
       return
     }
 
+    // Enable depth testing
+    viewer.scene.globe.depthTestAgainstTerrain = true;
+
     viewer.clock.startTime = start.clone()
     viewer.clock.stopTime = endTime.clone()
     viewer.clock.currentTime = start.clone()
@@ -86,8 +80,8 @@ export default function Igc3DViewer(props: Props) {
     viewer.clock.multiplier = 10;
   }, [])
 
+
   // Calculate the line that should show below the pilot, roughly around their current time
-  let renderedHeights: number[] = [];
   const positionsCallback = new CallbackProperty((time) => {
     const scene = ref.current?.cesiumElement?.scene;
     if(scene === undefined) {
@@ -103,14 +97,14 @@ export default function Igc3DViewer(props: Props) {
     const percentage = (currentDifference / totalDifference) * 100;
 
     const calculatedIndex = Math.round((percentage / 100) * (flight.fixes.length - 1));
-    const fix = flight.fixes[calculatedIndex];
+    const recentFixes = flight.fixes.slice(calculatedIndex - 5, calculatedIndex + 1);
 
-    const ret = [
-      Cartesian3.fromDegrees(fix.longitude, fix.latitude, 0),
-      Cartesian3.fromDegrees(fix.longitude, fix.latitude, fix.gpsAltitude || 0)
-    ];
-    return ret;
+    const wallPoints = recentFixes.map(f => toCartesian(f)).filter(i => i != undefined);
+    if(wallPoints.length < 1) {
+      return [];
+    }
 
+    return wallPoints;
   }, false);
 
   return (
@@ -142,16 +136,12 @@ export default function Igc3DViewer(props: Props) {
         <PointGraphics />
       </Entity>
       <Entity>
-        <PolylineGraphics positions={positionsCallback} clampToGround={false} arcType={ArcType.NONE} depthFailMaterial={Color.GREEN} />
-        {/* <WallGraphics */}
-        {/*   material={Color.GREEN.withAlpha(0.3)} */}
-        {/*    */}
-        {/*   positions={positionsCallback} */}
-        {/*   // maximumHeights={heightsCallback} */}
-        {/* /> */}
+        <WallGraphics
+          material={Color.GREEN.withAlpha(0.3)}
+          positions={positionsCallback}
+        />
       </Entity>
       ;
     </Viewer>
   )
-  // return <div>Awww yeah</div>
 }
