@@ -1,6 +1,15 @@
 import React from 'react'
 import { useRef, useEffect } from 'react'
-import { Entity, Viewer, CesiumComponentRef, PointGraphics, WallGraphics } from 'resium'
+import {
+  Entity,
+  Viewer,
+  CesiumComponentRef,
+  PointGraphics,
+  WallGraphics,
+  CylinderGraphics,
+  Label,
+  LabelCollection,
+} from 'resium'
 import {
   Cartesian3,
   JulianDate,
@@ -13,8 +22,14 @@ import {
   TimeIntervalCollection,
   TimeInterval,
   CallbackProperty,
+  HorizontalOrigin,
+  VerticalOrigin,
+  Transforms,
+  NearFarScalar,
 } from 'cesium'
 import IGCParser, { BRecord } from 'igc-parser'
+import { GscWaypoints, Waypoint } from '../lib'
+import { XMLParser } from 'fast-xml-parser'
 
 // Constant terrain world provider
 const terrainProvider = createWorldTerrain()
@@ -25,15 +40,101 @@ function toCartesian(fix: BRecord) {
 }
 
 export type Props = {
-  igc: string
+  igc: string;
+  locationsXml?: string;
 }
+
+
+function Waypoints(props: { igc: string, locationsXml: string, flight: IGCParser.IGCFile }) {
+  const waypoints = GscWaypoints(props.igc);
+  console.log("Waypoints", waypoints)
+  const parser = new XMLParser();
+  const jsonObj = parser.parse(props.locationsXml);
+  console.log("locations", jsonObj);
+
+  const poi: Waypoint[] = jsonObj.kml.Document.Folder.Placemark.map((w) => {
+    const [long, lat, alt] = w.Point.coordinates.split(",").map((s) => Number(s));
+    return {
+      longitude: long,
+      latitude: lat,
+      altitude: alt,
+      name: w.name.toString(),
+      description: w.description.toString(),
+      radiusMeters: 10,
+    }
+  });
+
+  for(let i = 0; i < waypoints.length; i++) {
+    const name = waypoints[i].name;
+    const poiWaypoint = poi.find(w => w.name == name);
+    if(poiWaypoint == null) {
+      waypoints[i].altitude = 2000;
+      continue;
+    }
+
+    waypoints[i].latitude = poiWaypoint.latitude;
+    waypoints[i].longitude= poiWaypoint.longitude;
+    waypoints[i].altitude = poiWaypoint.altitude;
+  }
+
+  console.log("Points of Interest parsed", poi);
+  console.log("Waitpoints Parsed", waypoints);
+  const center = Cartesian3.fromDegrees(props.flight.fixes[0].longitude, props.flight.fixes[0].latitude)
+
+  return <>
+    <LabelCollection >
+      {poi.map((w, i) =>
+        <Label
+          key={i}
+          text={w.description || w.name}
+          scale={1}
+          scaleByDistance={new NearFarScalar(1, 0, 1.2, 1)}
+          horizontalOrigin={HorizontalOrigin.CENTER}
+          verticalOrigin={VerticalOrigin.TOP}
+          fillColor={Color.YELLOW}
+          outlineColor={Color.BLACK}
+          backgroundColor={Color.BLACK}
+          outlineWidth={130}
+          font="12px Helvetica"
+          position={Cartesian3.fromDegrees(w.longitude, w.latitude, w.altitude)}
+        />
+      )}
+    </LabelCollection>
+    {poi.map((w, i) => <Entity
+      key={i}
+      name={w.name}
+      position={Cartesian3.fromDegrees(w.longitude, w.latitude, w.altitude)}
+    >
+      <PointGraphics />
+    </Entity>
+    )}
+
+    {waypoints.map((w, i) => {
+      return <Entity
+        key={"w-" + i.toString()}
+        name={w.description || w.name}
+        position={Cartesian3.fromDegrees(w.longitude, w.latitude, w.altitude)}
+      >
+        <CylinderGraphics 
+          topRadius={w.radiusMeters}
+          bottomRadius={w.radiusMeters}
+          length={1200}
+          material={Color.GREEN}
+        />
+      </Entity>
+    })}
+
+  </>
+
+}
+
 
 export default function Igc3DViewer(props: Props) {
   // A good example https://cesium.com/learn/cesiumjs-learn/cesiumjs-flight-tracker/
   // Lines to ground:  https://sandcastle.cesium.com/#c=tVhtcxo3EP4rN3w63KvABeMkdjwlNkkz4xBqcNqZ0vHId4LTRHe6kXRg2vF/7+pedS8Q0zZ8Qaz29dnVasUGC2tDyZYI660Vkq11TSSNA/QlodnLjpv8vuahwjQkYtnpXizDZbgBufeTyeJh8fnh02QxuQPxPhr0h68u0s3p+H7x8Xp8azKcvjr7qZCWCgs14zRUtzxcUxV7BFh+PH+NRqPB6PUw+5xdNNixyrmHAzQ6Hw5PR8WnwT1mBffoNHduLbBHSaiAOMhIAV6HRFH3hgriKspD7cxpP9t1eSyk1nF2nlE8CjZCV9PO0aAelaSZigzOa6DCCocDtBI8uCFrQYi0WzBwWiJ12uI5qeLfzfwioWeYdzFzx1EkOHb9GVb+pNy1K646BSZOEwoni98poi6LIAKtuRIJFv/4M9mqkFEUS79qz1BgCBsFeI0Ze8Tu15ngERFqZ6/iMM2L3bX+XobWno8gKhZh1a2LdvZnx1phJo1gVvSJeO8FDshC4FCuuAjKHBYkiQiWasqF8u+jBX9fCGUp8AkgGa41/AlsC55q+CWl2zmYDZzzHEZUuT6ISwax59IzTbTzLOWsflQ7uJmRhPuOM2Zn3jipVsfqG9AzHJKZoAHAtNGVnHYCJF0SEhTlGxJhz7Mz/Z+4R1hSxB+YWtl7MxELZr2xrGUHod4cBxEjN1jhXqDFZS9VNqYiWz3AEq3Z47Lj7FOYSH7CStAnUNzMiV8L3ExMvdYBNSdXMWGMRpJTD/32Yf5q6LQVQXe/VzSkgU7OE2Fz+hcB10bDNubnbok7rpxIOM+7Enuif9MM8z3oRpztGHRjMHbgJBQH6025dPazB1gRQTErwb3mjAt0N7k5ILWlnvJBZHCABwt3sYtIqXicEtD083SyR+65SX4uAdxCczgOskTipXD9D23oyFZUaUf/Ikkf7iaTKdpS5Y9Z5GMbruLuscBmN10sBABq3CEVNPJrzM4bkIwI8b5A/+Lim7zz2WRyo+eAfprJarch95EH4eksTjbgwi3cNbAjCsjthNOxFA1IAb7WC1ZnlVb2Iu9T+Wa8eaNLWs0QrYlK+gDDiQ/VnomMruTUdXUvSheNcaE5EuSb9TbVoi/VSFd2qfGqvJXTXaMsez1rSwAD4lmKQ0EmBiwJLSsNp+TcH1frDfhdu20RZ+JYZZKQEaMAVN+p0RkJ18rvXuyTa59AsgORLqqV3MwSYKZoxHbvdnMYq7Cwmyz304+Lh9+dtNAdU2MZ06FirZVeaTEZ/Q7WnmHL2W+jdKMFnhdIHVkIezUeXxTOgQrV/uW3Q9pTXBAVGK3YbsHf8TjULs4jn4jEp9xubadWtmf9fj+7tIum3zKRJaRKO0oGLfOsJizWFbyQjKZcGfKyWoTRiDQ5BqO+9UPBl+5nd0tZMD5S/A5SAXDZiWACSsX5Y6fRPKa2p9E0Dh6hNbeOsKlU7yT9PinkoU/lCnj54NKQUaMZnQBi0LSk0mW8xjrXxoaevJ3sri43TnqFVWh4/g7get0vCDS0lE+lHrsc68nCT7CO9IGS6RZJtKKCPyA43PqUkfzZB/xAk7GANqonXyvUs38ZDsqtt03/4EsTQO3fy3KZqWvJ5vd62pml/J+eMrUT8e0HjWH3yGeNVbxrcg1caK242lgP9K1fYz1ahS3ogS9V1UHSdAZzV+A0LMPPtCGZA4aWgIsXWnkb59DgLLhq14AuuTuexmKOIlWTCZsRhQGAU3O561i1GFPTpSvGuFIsT5r/6VSCrP7z0D535cogXZWMVWW/cQ2mzjqmkLNvzuvWT5khlB6pjtO5lGrHyFXeeX+mQQQHXD9hbXi9KgKvV4BV9h5j9ytRyJUyHx4ue6bopUc3FvXetvxrZrkMSwk7q5glD8Vl5+qyB/wNUcaTwvy8IYLhnWbzT69uUyJC6LIHP9slFefwVhE1zf8A
   // Perhaps Polyline will do ok?  https://sandcastle.cesium.com/?src=Sample%20Height%20from%203D%20Tiles.html
   // Hey this is a good reference:  https://replay.flights/
-  
+
   // Idea:
   /*
   First pass:
@@ -45,7 +146,14 @@ export default function Igc3DViewer(props: Props) {
 
 
   // Parse the flight from the igc file
-  const flight = IGCParser.parse(props.igc)
+  const flight = IGCParser.parse(props.igc);
+  console.log(flight);
+
+  // Load up the XML locations
+  let waypoints = undefined;
+  if (props.locationsXml != null) {
+    waypoints = <Waypoints igc={props.igc} locationsXml={props.locationsXml} flight={flight} />
+  }
 
   // Setup the track log for the entity
   const positionProperty = new SampledPositionProperty()
@@ -84,7 +192,7 @@ export default function Igc3DViewer(props: Props) {
   // Calculate the line that should show below the pilot, roughly around their current time
   const positionsCallback = new CallbackProperty((time) => {
     const scene = ref.current?.cesiumElement?.scene;
-    if(scene === undefined) {
+    if (scene === undefined) {
       return [];
     }
 
@@ -100,7 +208,7 @@ export default function Igc3DViewer(props: Props) {
     const recentFixes = flight.fixes.slice(calculatedIndex - 5, calculatedIndex + 1);
 
     const wallPoints = recentFixes.map(f => toCartesian(f)).filter(i => i != undefined);
-    if(wallPoints.length < 1) {
+    if (wallPoints.length < 1) {
       return [];
     }
 
@@ -109,6 +217,7 @@ export default function Igc3DViewer(props: Props) {
 
   return (
     <Viewer style={{ height: '100%' }} terrainProvider={terrainProvider} ref={ref}>
+      {waypoints && waypoints}
       <Entity
         name={flight.pilot || 'Pilot'}
         position={positionProperty}
@@ -141,7 +250,6 @@ export default function Igc3DViewer(props: Props) {
           positions={positionsCallback}
         />
       </Entity>
-      ;
     </Viewer>
   )
 }
