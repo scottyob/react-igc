@@ -42,42 +42,40 @@ function toCartesian(fix: BRecord) {
 }
 
 export type Props = {
-  igc: string;
-  locationsXml?: string;
+  igc: string
+  locationsXml?: string
 }
-
 
 // Calcualtes when waypoints were hit, given a recorded flight
 function WaypointStartTimes(waypoints: Waypoint[], flight: IGCParser.IGCFile) {
-  let currentWaypointIndex = 0;
-  let currentWaypoint = waypoints[currentWaypointIndex];
+  let currentWaypointIndex = 0
+  let currentWaypoint = waypoints[currentWaypointIndex]
 
-  const achievedTime: number[] = [];
+  const achievedTime: number[] = []
   flight.fixes.every((f) => {
     if (currentWaypoint == null) {
-      return false;
+      return false
     }
-    const distanceToWaypoint = getDistance(f, currentWaypoint);
+    const distanceToWaypoint = getDistance(f, currentWaypoint)
     if (distanceToWaypoint < (currentWaypoint.radiusMeters || 0)) {
       achievedTime.push(f.timestamp)
-      currentWaypointIndex++;
-      currentWaypoint = waypoints[currentWaypointIndex];
+      currentWaypointIndex++
+      currentWaypoint = waypoints[currentWaypointIndex]
     }
-    return true;
-  });
-  return achievedTime;
+    return true
+  })
+  return achievedTime
 }
 
-
-function Waypoints(props: { igc: string, locationsXml: string, flight: IGCParser.IGCFile }) {
-  const waypoints = GscWaypoints(props.igc);
-  console.log("Waypoints", waypoints)
-  const parser = new XMLParser();
-  const jsonObj = parser.parse(props.locationsXml);
-  console.log("locations", jsonObj);
+function Waypoints(props: { igc: string; locationsXml: string; flight: IGCParser.IGCFile }) {
+  const waypoints = GscWaypoints(props.igc)
+  console.log('Waypoints', waypoints)
+  const parser = new XMLParser()
+  const jsonObj = parser.parse(props.locationsXml)
+  console.log('locations', jsonObj)
 
   const poi: Waypoint[] = jsonObj.kml.Document.Folder.Placemark.map((w: any) => {
-    const [long, lat, alt] = w.Point.coordinates.split(",").map((s: any) => Number(s));
+    const [long, lat, alt] = w.Point.coordinates.split(',').map((s: any) => Number(s))
     return {
       longitude: long,
       latitude: lat,
@@ -86,123 +84,125 @@ function Waypoints(props: { igc: string, locationsXml: string, flight: IGCParser
       description: w.description.toString(),
       radiusMeters: 10,
     }
-  });
+  })
 
   for (let i = 0; i < waypoints.length; i++) {
-    const name = waypoints[i].name;
-    const poiWaypoint = poi.find(w => w.name == name);
+    const name = waypoints[i].name
+    const poiWaypoint = poi.find((w) => w.name == name)
     if (poiWaypoint == null) {
-      waypoints[i].altitude = 2000;
-      continue;
+      waypoints[i].altitude = 2000
+      continue
     }
 
-    waypoints[i].latitude = poiWaypoint.latitude;
-    waypoints[i].longitude = poiWaypoint.longitude;
-    waypoints[i].altitude = poiWaypoint.altitude;
+    waypoints[i].latitude = poiWaypoint.latitude
+    waypoints[i].longitude = poiWaypoint.longitude
+    waypoints[i].altitude = poiWaypoint.altitude
   }
 
   // Let's add an achieved time to the waypoints
-  const achievedTimes = WaypointStartTimes(waypoints, props.flight);
+  const achievedTimes = WaypointStartTimes(waypoints, props.flight)
 
+  console.log('Points of Interest parsed', poi)
+  console.log('Waitpoints Parsed', waypoints)
 
-  console.log("Points of Interest parsed", poi);
-  console.log("Waitpoints Parsed", waypoints);
+  return (
+    <>
+      <LabelCollection>
+        {poi.map((w, i) => (
+          <Label
+            key={i}
+            text={w.name || w.name}
+            scale={1}
+            scaleByDistance={new NearFarScalar(1, 0, 1.2, 1)}
+            horizontalOrigin={HorizontalOrigin.CENTER}
+            verticalOrigin={VerticalOrigin.TOP}
+            fillColor={Color.YELLOW}
+            outlineColor={Color.BLACK}
+            backgroundColor={Color.BLACK}
+            outlineWidth={130}
+            font='12px Helvetica'
+            position={Cartesian3.fromDegrees(w.longitude, w.latitude, w.altitude + 250)}
+          />
+        ))}
+      </LabelCollection>
+      {poi.map((w, i) => (
+        <Entity key={i} name={w.name} position={Cartesian3.fromDegrees(w.longitude, w.latitude, w.altitude)}>
+          <PointGraphics color={Color.ORANGE} pixelSize={3} />
+        </Entity>
+      ))}
 
-  return <>
-    <LabelCollection >
-      {poi.map((w, i) =>
-        <Label
-          key={i}
-          text={w.name || w.name}
-          scale={1}
-          scaleByDistance={new NearFarScalar(1, 0, 1.2, 1)}
-          horizontalOrigin={HorizontalOrigin.CENTER}
-          verticalOrigin={VerticalOrigin.TOP}
-          fillColor={Color.YELLOW}
-          outlineColor={Color.BLACK}
-          backgroundColor={Color.BLACK}
-          outlineWidth={130}
-          font="12px Helvetica"
-          position={Cartesian3.fromDegrees(w.longitude, w.latitude, w.altitude + 250)}
-        />
-      )}
-    </LabelCollection>
-    {poi.map((w, i) => <Entity
-      key={i}
-      name={w.name}
-      position={Cartesian3.fromDegrees(w.longitude, w.latitude, w.altitude)}
-    >
-      <PointGraphics color={Color.ORANGE} pixelSize={3} />
-    </Entity>
-    )}
+      {waypoints.map((w, i) => {
+        // Render the cylinder column for the waypoint.
+        console.log('Rendering Waypoint')
 
-    {waypoints.map((w, i) => {
-      // Render the cylinder column for the waypoint.
-      console.log("Rendering Waypoint");
+        // Check if the waypoint was ever achieved.  Changed the color when it's achieved
+        const achievedTime = achievedTimes[i]
+        const previousAchievedTime = achievedTimes[i - 1]
 
-      // Check if the waypoint was ever achieved.  Changed the color when it's achieved
-      const achievedTime = achievedTimes[i];
-      const previousAchievedTime = achievedTimes[i-1];
+        const colorAtTime = new TimeIntervalCollectionProperty()
+        colorAtTime.intervals.addInterval(
+          new TimeInterval({
+            start: JulianDate.fromIso8601('1980-08-01T00:00:00Z'),
+            stop: JulianDate.fromDate(new Date(previousAchievedTime || 4070941261 * 1000)),
+            isStopIncluded: true,
+            isStartIncluded: true,
+            data: Color.GRAY.withAlpha(0.15),
+          }),
+        )
 
+        if (previousAchievedTime != null) {
+          colorAtTime.intervals.addInterval(
+            new TimeInterval({
+              start: JulianDate.fromDate(new Date(previousAchievedTime)),
+              stop: JulianDate.fromDate(new Date(achievedTime || 4070941261 * 1000)),
+              isStartIncluded: true,
+              isStopIncluded: true,
+              data: Color.ORANGERED.withAlpha(0.12),
+            }),
+          )
+        }
 
-      const colorAtTime = new TimeIntervalCollectionProperty();
-      colorAtTime.intervals.addInterval(new TimeInterval({
-        start: JulianDate.fromIso8601('1980-08-01T00:00:00Z'),
-        stop: JulianDate.fromDate(new Date(previousAchievedTime || 4070941261 * 1000)),
-        isStopIncluded: true,
-        isStartIncluded: true,
-        data: Color.GRAY.withAlpha(0.15),
-      }));
+        if (achievedTime != null) {
+          colorAtTime.intervals.addInterval(
+            new TimeInterval({
+              start: JulianDate.fromDate(new Date(achievedTime)),
+              stop: JulianDate.fromIso8601('2033-08-01T00:00:00Z'),
+              isStartIncluded: true,
+              isStopIncluded: true,
+              data: Color.GREEN.withAlpha(0),
+            }),
+          )
+        }
 
-      if(previousAchievedTime != null) {
-        colorAtTime.intervals.addInterval(new TimeInterval({
-          start: JulianDate.fromDate(new Date(previousAchievedTime)),
-          stop: JulianDate.fromDate(new Date(achievedTime || 4070941261 * 1000)),
-          isStartIncluded: true,
-          isStopIncluded: true,
-          data: Color.ORANGERED.withAlpha(0.12),
-        }));
-      }
-
-      if (achievedTime != null) {
-        colorAtTime.intervals.addInterval(new TimeInterval({
-          start: JulianDate.fromDate(new Date(achievedTime)),
-          stop: JulianDate.fromIso8601('2033-08-01T00:00:00Z'),
-          isStartIncluded: true,
-          isStopIncluded: true,
-          data: Color.GREEN.withAlpha(0),
-        }));
-      }
-
-      return <Entity
-        key={"w-" + i.toString()}
-        name={w.description || w.name}
-        position={Cartesian3.fromDegrees(w.longitude, w.latitude, w.altitude)}
-      >
-        <CylinderGraphics
-          topRadius={w.radiusMeters}
-          bottomRadius={w.radiusMeters}
-          length={1200}
-          material={new ColorMaterialProperty(colorAtTime)}
-        />
-      </Entity>
-    })}
-
-  </>
-
+        return (
+          <Entity
+            key={'w-' + i.toString()}
+            name={w.description || w.name}
+            position={Cartesian3.fromDegrees(w.longitude, w.latitude, w.altitude)}
+          >
+            <CylinderGraphics
+              topRadius={w.radiusMeters}
+              bottomRadius={w.radiusMeters}
+              length={1200}
+              material={new ColorMaterialProperty(colorAtTime)}
+            />
+          </Entity>
+        )
+      })}
+    </>
+  )
 }
-
 
 export default function Igc3DViewer(props: Props) {
   // Hey this is a good reference:  https://replay.flights/
   // Inspiration!
 
   // Parse the flight from the igc file
-  const flight = IGCParser.parse(props.igc);
-  console.log(flight);
+  const flight = IGCParser.parse(props.igc)
+  console.log(flight)
 
   // Load up the XML locations
-  let waypoints = undefined;
+  let waypoints = undefined
   if (props.locationsXml != null) {
     waypoints = <Waypoints igc={props.igc} locationsXml={props.locationsXml} flight={flight} />
   }
@@ -234,38 +234,37 @@ export default function Igc3DViewer(props: Props) {
     viewer.clock.currentTime = start.clone()
     viewer.timeline.zoomTo(start, endTime)
     viewer.clock.shouldAnimate = true
-    viewer.clock.multiplier = 10;
+    viewer.clock.multiplier = 10
 
     // Enable depth testing
-    viewer.scene.globe.depthTestAgainstTerrain = true;
-  }, [])
-
+    viewer.scene.globe.depthTestAgainstTerrain = true
+  }, [start, endTime])
 
   // Calculate the line that should show below the pilot, roughly around their current time
   const positionsCallback = new CallbackProperty((time) => {
-    const scene = ref.current?.cesiumElement?.scene;
+    const scene = ref.current?.cesiumElement?.scene
     if (scene === undefined) {
-      return [];
+      return []
     }
 
-    const start = flight.fixes[0].timestamp;
-    const current = new Date(time.toString()).getTime();
-    const finish = flight.fixes[flight.fixes.length - 1].timestamp;
+    const start = flight.fixes[0].timestamp
+    const current = new Date(time.toString()).getTime()
+    const finish = flight.fixes[flight.fixes.length - 1].timestamp
 
-    const totalDifference = finish - start;
-    const currentDifference = current - start;
-    const percentage = (currentDifference / totalDifference) * 100;
+    const totalDifference = finish - start
+    const currentDifference = current - start
+    const percentage = (currentDifference / totalDifference) * 100
 
-    const calculatedIndex = Math.round((percentage / 100) * (flight.fixes.length - 1));
-    const recentFixes = flight.fixes.slice(calculatedIndex - 5, calculatedIndex + 1);
+    const calculatedIndex = Math.round((percentage / 100) * (flight.fixes.length - 1))
+    const recentFixes = flight.fixes.slice(calculatedIndex - 5, calculatedIndex + 1)
 
-    const wallPoints = recentFixes.map(f => toCartesian(f)).filter(i => i != undefined);
+    const wallPoints = recentFixes.map((f) => toCartesian(f)).filter((i) => i != undefined)
     if (wallPoints.length < 1) {
-      return [];
+      return []
     }
 
-    return wallPoints;
-  }, false);
+    return wallPoints
+  }, false)
 
   return (
     <Viewer style={{ height: '100%' }} terrainProvider={terrainProvider} ref={ref}>
@@ -297,10 +296,7 @@ export default function Igc3DViewer(props: Props) {
         <PointGraphics />
       </Entity>
       <Entity>
-        <WallGraphics
-          material={Color.GREEN.withAlpha(0.3)}
-          positions={positionsCallback}
-        />
+        <WallGraphics material={Color.GREEN.withAlpha(0.3)} positions={positionsCallback} />
       </Entity>
     </Viewer>
   )

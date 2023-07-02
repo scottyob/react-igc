@@ -9127,4 +9127,4 @@ const waypointsXml = `<?xml version="1.0" encoding="UTF-8"?>
   </Document>
 </kml>`
 
-export {igc1, waypointsXml}
+export { igc1, waypointsXml }
