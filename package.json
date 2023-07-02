@@ -61,6 +61,7 @@
   "dependencies": {
     "cesium": "^1.106.1",
     "fast-xml-parser": "^4.2.5",
+    "geolib": "^3.3.4",
     "leaflet": "^1.9.4",
     "react-leaflet": "^4.2.1",
     "resium": "^1.16.1"

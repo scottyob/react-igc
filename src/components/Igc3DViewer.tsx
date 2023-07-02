@@ -24,12 +24,14 @@ import {
   CallbackProperty,
   HorizontalOrigin,
   VerticalOrigin,
-  Transforms,
   NearFarScalar,
+  TimeIntervalCollectionProperty,
+  ColorMaterialProperty,
 } from 'cesium'
 import IGCParser, { BRecord } from 'igc-parser'
 import { GscWaypoints, Waypoint } from '../lib'
 import { XMLParser } from 'fast-xml-parser'
+import { getDistance } from 'geolib'
 
 // Constant terrain world provider
 const terrainProvider = createWorldTerrain()
@@ -45,6 +47,28 @@ export type Props = {
 }
 
 
+// Calcualtes when waypoints were hit, given a recorded flight
+function WaypointStartTimes(waypoints: Waypoint[], flight: IGCParser.IGCFile) {
+  let currentWaypointIndex = 0;
+  let currentWaypoint = waypoints[currentWaypointIndex];
+
+  const achievedTime: number[] = [];
+  flight.fixes.every((f) => {
+    if (currentWaypoint == null) {
+      return false;
+    }
+    const distanceToWaypoint = getDistance(f, currentWaypoint);
+    if (distanceToWaypoint < (currentWaypoint.radiusMeters || 0)) {
+      achievedTime.push(f.timestamp)
+      currentWaypointIndex++;
+      currentWaypoint = waypoints[currentWaypointIndex];
+    }
+    return true;
+  });
+  return achievedTime;
+}
+
+
 function Waypoints(props: { igc: string, locationsXml: string, flight: IGCParser.IGCFile }) {
   const waypoints = GscWaypoints(props.igc);
   console.log("Waypoints", waypoints)
@@ -52,8 +76,8 @@ function Waypoints(props: { igc: string, locationsXml: string, flight: IGCParser
   const jsonObj = parser.parse(props.locationsXml);
   console.log("locations", jsonObj);
 
-  const poi: Waypoint[] = jsonObj.kml.Document.Folder.Placemark.map((w) => {
-    const [long, lat, alt] = w.Point.coordinates.split(",").map((s) => Number(s));
+  const poi: Waypoint[] = jsonObj.kml.Document.Folder.Placemark.map((w: any) => {
+    const [long, lat, alt] = w.Point.coordinates.split(",").map((s: any) => Number(s));
     return {
       longitude: long,
       latitude: lat,
@@ -64,22 +88,25 @@ function Waypoints(props: { igc: string, locationsXml: string, flight: IGCParser
     }
   });
 
-  for(let i = 0; i < waypoints.length; i++) {
+  for (let i = 0; i < waypoints.length; i++) {
     const name = waypoints[i].name;
     const poiWaypoint = poi.find(w => w.name == name);
-    if(poiWaypoint == null) {
+    if (poiWaypoint == null) {
       waypoints[i].altitude = 2000;
       continue;
     }
 
     waypoints[i].latitude = poiWaypoint.latitude;
-    waypoints[i].longitude= poiWaypoint.longitude;
+    waypoints[i].longitude = poiWaypoint.longitude;
     waypoints[i].altitude = poiWaypoint.altitude;
   }
 
+  // Let's add an achieved time to the waypoints
+  const achievedTimes = WaypointStartTimes(waypoints, props.flight);
+
+
   console.log("Points of Interest parsed", poi);
   console.log("Waitpoints Parsed", waypoints);
-  const center = Cartesian3.fromDegrees(props.flight.fixes[0].longitude, props.flight.fixes[0].latitude)
 
   return <>
     <LabelCollection >
@@ -110,16 +137,53 @@ function Waypoints(props: { igc: string, locationsXml: string, flight: IGCParser
     )}
 
     {waypoints.map((w, i) => {
+      // Render the cylinder column for the waypoint.
+      console.log("Rendering Waypoint");
+
+      // Check if the waypoint was ever achieved.  Changed the color when it's achieved
+      const achievedTime = achievedTimes[i];
+      const previousAchievedTime = achievedTimes[i-1];
+
+
+      const colorAtTime = new TimeIntervalCollectionProperty();
+      colorAtTime.intervals.addInterval(new TimeInterval({
+        start: JulianDate.fromIso8601('1980-08-01T00:00:00Z'),
+        stop: JulianDate.fromDate(new Date(previousAchievedTime || 4070941261 * 1000)),
+        isStopIncluded: true,
+        isStartIncluded: true,
+        data: Color.GRAY.withAlpha(0.15),
+      }));
+
+      if(previousAchievedTime != null) {
+        colorAtTime.intervals.addInterval(new TimeInterval({
+          start: JulianDate.fromDate(new Date(previousAchievedTime)),
+          stop: JulianDate.fromDate(new Date(achievedTime || 4070941261 * 1000)),
+          isStartIncluded: true,
+          isStopIncluded: true,
+          data: Color.ORANGERED.withAlpha(0.12),
+        }));
+      }
+
+      if (achievedTime != null) {
+        colorAtTime.intervals.addInterval(new TimeInterval({
+          start: JulianDate.fromDate(new Date(achievedTime)),
+          stop: JulianDate.fromIso8601('2033-08-01T00:00:00Z'),
+          isStartIncluded: true,
+          isStopIncluded: true,
+          data: Color.GREEN.withAlpha(0),
+        }));
+      }
+
       return <Entity
         key={"w-" + i.toString()}
         name={w.description || w.name}
         position={Cartesian3.fromDegrees(w.longitude, w.latitude, w.altitude)}
       >
-        <CylinderGraphics 
+        <CylinderGraphics
           topRadius={w.radiusMeters}
           bottomRadius={w.radiusMeters}
           length={1200}
-          material={Color.YELLOW.withAlpha(0.5)}
+          material={new ColorMaterialProperty(colorAtTime)}
         />
       </Entity>
     })}
@@ -130,20 +194,8 @@ function Waypoints(props: { igc: string, locationsXml: string, flight: IGCParser
 
 
 export default function Igc3DViewer(props: Props) {
-  // A good example https://cesium.com/learn/cesiumjs-learn/cesiumjs-flight-tracker/
-  // Lines to ground:  https://sandcastle.cesium.com/#c=tVhtcxo3EP4rN3w63KvABeMkdjwlNkkz4xBqcNqZ0vHId4LTRHe6kXRg2vF/7+pedS8Q0zZ8Qaz29dnVasUGC2tDyZYI660Vkq11TSSNA/QlodnLjpv8vuahwjQkYtnpXizDZbgBufeTyeJh8fnh02QxuQPxPhr0h68u0s3p+H7x8Xp8azKcvjr7qZCWCgs14zRUtzxcUxV7BFh+PH+NRqPB6PUw+5xdNNixyrmHAzQ6Hw5PR8WnwT1mBffoNHduLbBHSaiAOMhIAV6HRFH3hgriKspD7cxpP9t1eSyk1nF2nlE8CjZCV9PO0aAelaSZigzOa6DCCocDtBI8uCFrQYi0WzBwWiJ12uI5qeLfzfwioWeYdzFzx1EkOHb9GVb+pNy1K646BSZOEwoni98poi6LIAKtuRIJFv/4M9mqkFEUS79qz1BgCBsFeI0Ze8Tu15ngERFqZ6/iMM2L3bX+XobWno8gKhZh1a2LdvZnx1phJo1gVvSJeO8FDshC4FCuuAjKHBYkiQiWasqF8u+jBX9fCGUp8AkgGa41/AlsC55q+CWl2zmYDZzzHEZUuT6ISwax59IzTbTzLOWsflQ7uJmRhPuOM2Zn3jipVsfqG9AzHJKZoAHAtNGVnHYCJF0SEhTlGxJhz7Mz/Z+4R1hSxB+YWtl7MxELZr2xrGUHod4cBxEjN1jhXqDFZS9VNqYiWz3AEq3Z47Lj7FOYSH7CStAnUNzMiV8L3ExMvdYBNSdXMWGMRpJTD/32Yf5q6LQVQXe/VzSkgU7OE2Fz+hcB10bDNubnbok7rpxIOM+7Enuif9MM8z3oRpztGHRjMHbgJBQH6025dPazB1gRQTErwb3mjAt0N7k5ILWlnvJBZHCABwt3sYtIqXicEtD083SyR+65SX4uAdxCczgOskTipXD9D23oyFZUaUf/Ikkf7iaTKdpS5Y9Z5GMbruLuscBmN10sBABq3CEVNPJrzM4bkIwI8b5A/+Lim7zz2WRyo+eAfprJarch95EH4eksTjbgwi3cNbAjCsjthNOxFA1IAb7WC1ZnlVb2Iu9T+Wa8eaNLWs0QrYlK+gDDiQ/VnomMruTUdXUvSheNcaE5EuSb9TbVoi/VSFd2qfGqvJXTXaMsez1rSwAD4lmKQ0EmBiwJLSsNp+TcH1frDfhdu20RZ+JYZZKQEaMAVN+p0RkJ18rvXuyTa59AsgORLqqV3MwSYKZoxHbvdnMYq7Cwmyz304+Lh9+dtNAdU2MZ06FirZVeaTEZ/Q7WnmHL2W+jdKMFnhdIHVkIezUeXxTOgQrV/uW3Q9pTXBAVGK3YbsHf8TjULs4jn4jEp9xubadWtmf9fj+7tIum3zKRJaRKO0oGLfOsJizWFbyQjKZcGfKyWoTRiDQ5BqO+9UPBl+5nd0tZMD5S/A5SAXDZiWACSsX5Y6fRPKa2p9E0Dh6hNbeOsKlU7yT9PinkoU/lCnj54NKQUaMZnQBi0LSk0mW8xjrXxoaevJ3sri43TnqFVWh4/g7get0vCDS0lE+lHrsc68nCT7CO9IGS6RZJtKKCPyA43PqUkfzZB/xAk7GANqonXyvUs38ZDsqtt03/4EsTQO3fy3KZqWvJ5vd62pml/J+eMrUT8e0HjWH3yGeNVbxrcg1caK242lgP9K1fYz1ahS3ogS9V1UHSdAZzV+A0LMPPtCGZA4aWgIsXWnkb59DgLLhq14AuuTuexmKOIlWTCZsRhQGAU3O561i1GFPTpSvGuFIsT5r/6VSCrP7z0D535cogXZWMVWW/cQ2mzjqmkLNvzuvWT5khlB6pjtO5lGrHyFXeeX+mQQQHXD9hbXi9KgKvV4BV9h5j9ytRyJUyHx4ue6bopUc3FvXetvxrZrkMSwk7q5glD8Vl5+qyB/wNUcaTwvy8IYLhnWbzT69uUyJC6LIHP9slFefwVhE1zf8A
-  // Perhaps Polyline will do ok?  https://sandcastle.cesium.com/?src=Sample%20Height%20from%203D%20Tiles.html
   // Hey this is a good reference:  https://replay.flights/
-
-  // Idea:
-  /*
-  First pass:
-    - Load in the tracks.
-    - For each sample.
-      - clampToHeighMostDetailed
-    - Use this to be able to draw a polygon
-  */
-
+  // Inspiration!
 
   // Parse the flight from the igc file
   const flight = IGCParser.parse(props.igc);
@@ -177,15 +229,15 @@ export default function Igc3DViewer(props: Props) {
       return
     }
 
-    // Enable depth testing
-    viewer.scene.globe.depthTestAgainstTerrain = true;
-
     viewer.clock.startTime = start.clone()
     viewer.clock.stopTime = endTime.clone()
     viewer.clock.currentTime = start.clone()
     viewer.timeline.zoomTo(start, endTime)
     viewer.clock.shouldAnimate = true
     viewer.clock.multiplier = 10;
+
+    // Enable depth testing
+    viewer.scene.globe.depthTestAgainstTerrain = true;
   }, [])
 
 
