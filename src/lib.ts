@@ -71,8 +71,8 @@ export function GscWaypoints(input: string) {
     } else {
       // The first characters are where the C, and coordinates.
       // "C....0012000 0032000 122000 182000TURN AREA" would be an area from 12 to 32 km from the WP between the bearings 122 and 182 from the Point
-      const str = task.slice(18).slice(8, 7*2);
-      radius = parseInt(str, 10);
+      const str = task.slice(18).slice(8, 7 * 2)
+      radius = parseInt(str, 10)
     }
 
     const taskRegex = /C(?<ns>[0-9]+)(?<nsBearing>[NS])(?<ew>[0-9]+)(?<ewBearing>[EW])(?<name>.*)/g

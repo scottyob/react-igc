@@ -87,7 +87,7 @@ function Waypoints(props: { igc: string; locationsXml: string; flight: IGCParser
   })
 
   for (let i = 0; i < waypoints.length; i++) {
-    const name = waypoints[i].name.split(" ").slice(-1)[0]
+    const name = waypoints[i].name.split(' ').slice(-1)[0]
     const poiWaypoint = poi.find((w) => w.name == name)
     if (poiWaypoint == null) {
       waypoints[i].altitude = 2000
