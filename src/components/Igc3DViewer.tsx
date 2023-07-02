@@ -86,7 +86,7 @@ function Waypoints(props: { igc: string, locationsXml: string, flight: IGCParser
       {poi.map((w, i) =>
         <Label
           key={i}
-          text={w.description || w.name}
+          text={w.name || w.name}
           scale={1}
           scaleByDistance={new NearFarScalar(1, 0, 1.2, 1)}
           horizontalOrigin={HorizontalOrigin.CENTER}
@@ -96,7 +96,7 @@ function Waypoints(props: { igc: string, locationsXml: string, flight: IGCParser
           backgroundColor={Color.BLACK}
           outlineWidth={130}
           font="12px Helvetica"
-          position={Cartesian3.fromDegrees(w.longitude, w.latitude, w.altitude)}
+          position={Cartesian3.fromDegrees(w.longitude, w.latitude, w.altitude + 250)}
         />
       )}
     </LabelCollection>
@@ -105,7 +105,7 @@ function Waypoints(props: { igc: string, locationsXml: string, flight: IGCParser
       name={w.name}
       position={Cartesian3.fromDegrees(w.longitude, w.latitude, w.altitude)}
     >
-      <PointGraphics />
+      <PointGraphics color={Color.ORANGE} pixelSize={3} />
     </Entity>
     )}
 
@@ -119,7 +119,7 @@ function Waypoints(props: { igc: string, locationsXml: string, flight: IGCParser
           topRadius={w.radiusMeters}
           bottomRadius={w.radiusMeters}
           length={1200}
-          material={Color.GREEN}
+          material={Color.YELLOW.withAlpha(0.5)}
         />
       </Entity>
     })}
