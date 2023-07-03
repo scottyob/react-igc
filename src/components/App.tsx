@@ -19,7 +19,16 @@ const IgcViewer = ({ igc = '' }: Props) => {
   })
 
   return (
-    <MapContainer style={{ display: 'flex', flexGrow: 1 }} center={position} zoom={13} scrollWheelZoom={false}>
+    <MapContainer style={{ display: 'flex', flexGrow: 1 }}
+      center={position}
+      zoom={13}
+      scrollWheelZoom={false}
+      zoomControl={false}
+      keyboard={false}
+      tap={false}
+      doubleClickZoom={false}
+      dragging={false}
+    >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
