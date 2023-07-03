@@ -1,6 +1,6 @@
 {
   "name": "@scottyob/react-igc",
-  "version": "0.1.01",
+  "version": "0.1.02",
   "description": "A react component for viewing a flight (igc file)",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",

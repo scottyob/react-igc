@@ -19,7 +19,8 @@ const IgcViewer = ({ igc = '' }: Props) => {
   })
 
   return (
-    <MapContainer style={{ display: 'flex', flexGrow: 1 }}
+    <MapContainer
+      style={{ display: 'flex', flexGrow: 1 }}
       center={position}
       zoom={13}
       scrollWheelZoom={false}
