@@ -1,5 +1,5 @@
 {
-  "name": "react-igc",
+  "name": "@scottyob/react-igc",
   "version": "0.1.01",
   "description": "A react component for viewing a flight (igc file)",
   "main": "./dist/cjs/index.js",
