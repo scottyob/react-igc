@@ -1,12 +1,14 @@
 import React from 'react'
 import IGCParser from 'igc-parser'
-import { MapContainer, Polyline, TileLayer } from 'react-leaflet'
+import { MapContainer, Polyline, TileLayer, MapContainerProps } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
-type Props = {
+type Props = MapContainerProps & {
   igc: string
 }
-const IgcViewer = ({ igc = '' }: Props) => {
+
+export default function IgcViewer(props: Props) {
+  const igc = props.igc;
   const flight = IGCParser.parse(igc)
 
   // const task = flight.task;
@@ -22,13 +24,7 @@ const IgcViewer = ({ igc = '' }: Props) => {
     <MapContainer
       style={{ display: 'flex', flexGrow: 1 }}
       center={position}
-      zoom={13}
-      scrollWheelZoom={false}
-      zoomControl={false}
-      keyboard={false}
-      tap={false}
-      doubleClickZoom={false}
-      dragging={false}
+      {...props}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -39,4 +35,3 @@ const IgcViewer = ({ igc = '' }: Props) => {
   )
 }
 
-export default IgcViewer
