@@ -8,7 +8,7 @@ type Props = MapContainerProps & {
 }
 
 export default function IgcViewer(props: Props) {
-  const igc = props.igc;
+  const igc = props.igc
   const flight = IGCParser.parse(igc)
 
   // const task = flight.task;
@@ -21,11 +21,7 @@ export default function IgcViewer(props: Props) {
   })
 
   return (
-    <MapContainer
-      style={{ display: 'flex', flexGrow: 1 }}
-      center={position}
-      {...props}
-    >
+    <MapContainer style={{ display: 'flex', flexGrow: 1 }} center={position} {...props}>
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
@@ -34,4 +30,3 @@ export default function IgcViewer(props: Props) {
     </MapContainer>
   )
 }
-

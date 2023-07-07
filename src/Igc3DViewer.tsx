@@ -14,7 +14,6 @@ import {
   Cartesian3,
   JulianDate,
   SampledPositionProperty,
-  createWorldTerrain,
   Viewer as CesiumViewer,
   PolylineGlowMaterialProperty,
   Color,
@@ -27,6 +26,7 @@ import {
   NearFarScalar,
   TimeIntervalCollectionProperty,
   ColorMaterialProperty,
+  createWorldTerrainAsync,
 } from 'cesium'
 import IGCParser, { BRecord } from 'igc-parser'
 import { GscWaypoints, Waypoint } from './lib'
@@ -34,7 +34,7 @@ import { XMLParser } from 'fast-xml-parser'
 import { getDistance } from 'geolib'
 
 // Constant terrain world provider
-const terrainProvider = createWorldTerrain()
+// const terrainProvider = createWorldTerrain()
 
 // Helper function to convert IGC position to Cartesian
 function toCartesian(fix: BRecord) {
@@ -238,6 +238,10 @@ export default function Igc3DViewer(props: Props) {
 
     // Enable depth testing
     viewer.scene.globe.depthTestAgainstTerrain = true
+
+    // Set the world terrain
+    createWorldTerrainAsync().then((t) => {viewer.terrainProvider = t;})
+
   }, [start, endTime])
 
   // Calculate the line that should show below the pilot, roughly around their current time
@@ -267,7 +271,7 @@ export default function Igc3DViewer(props: Props) {
   }, false)
 
   return (
-    <Viewer style={{ height: '100%' }} terrainProvider={terrainProvider} ref={ref}>
+    <Viewer style={{ height: '100%' }} ref={ref}>
       {waypoints && waypoints}
       <Entity
         name={flight.pilot || 'Pilot'}
