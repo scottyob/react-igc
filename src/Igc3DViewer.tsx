@@ -29,7 +29,7 @@ import {
   ColorMaterialProperty,
 } from 'cesium'
 import IGCParser, { BRecord } from 'igc-parser'
-import { GscWaypoints, Waypoint } from '../lib'
+import { GscWaypoints, Waypoint } from './lib'
 import { XMLParser } from 'fast-xml-parser'
 import { getDistance } from 'geolib'
 

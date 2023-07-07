@@ -7,10 +7,15 @@
   "module": "./dist/esm/index.js",
   "types": "./dist/esm/index.d.ts",
   "exports": {
-    ".": {
-      "require": "./dist/cjs/index.js",
-      "import": "./dist/esm/index.js",
-      "types": "./dist/esm/index.d.ts"
+    "./IgcViewer": {
+      "require": "./dist/cjs/IgcViewer.js",
+      "import": "./dist/esm/IgcViewer.js",
+      "types": "./dist/esm/IgcViewer.d.ts"
+    },
+    "./Igc3DViewer": {
+      "require": "./dist/cjs/Igc3DViewer.js",
+      "import": "./dist/esm/Igc3DViewer.js",
+      "types": "./dist/esm/Igc3DViewer.d.ts"
     }
   },
   "type": "module",
