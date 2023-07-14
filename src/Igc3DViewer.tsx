@@ -29,7 +29,7 @@ import {
   createWorldTerrainAsync,
 } from 'cesium'
 import IGCParser, { BRecord } from 'igc-parser'
-import { GscWaypoints, Waypoint } from './lib'
+import { GscWaypoints, type Waypoint } from './lib.js'
 import { XMLParser } from 'fast-xml-parser'
 import { getDistance } from 'geolib'
 
