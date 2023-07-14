@@ -16,7 +16,8 @@
       "require": "./dist/cjs/Igc3DViewer.js",
       "import": "./dist/esm/Igc3DViewer.js",
       "types": "./dist/esm/Igc3DViewer.d.ts"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "type": "module",
   "scripts": {
