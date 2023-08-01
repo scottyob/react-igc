@@ -1,18 +1,10 @@
 {
   "name": "@scottyob/react-igc",
-  "version": "0.1.05",
+  "version": "0.1.06",
   "description": "A react component for viewing a flight (igc file)",
   "homepage": "https://github.com/scottyob/react-igc",
-  "main": "./dist/cjs/index.js",
-  "module": "./dist/esm/index.js",
-  "types": "./dist/esm/index.d.ts",
   "exports": {
-    "./IgcViewer": {
-      "require": "./dist/cjs/IgcViewer.js",
-      "import": "./dist/esm/IgcViewer.js",
-      "types": "./dist/esm/IgcViewer.d.ts"
-    },
-    "./Igc3DViewer": {
+    ".": {
       "require": "./dist/cjs/Igc3DViewer.js",
       "import": "./dist/esm/Igc3DViewer.js",
       "types": "./dist/esm/Igc3DViewer.d.ts"
