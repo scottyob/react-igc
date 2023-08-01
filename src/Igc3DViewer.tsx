@@ -9,6 +9,8 @@ import {
   CylinderGraphics,
   Label,
   LabelCollection,
+  Scene,
+  Globe,
 } from 'resium'
 import {
   Cartesian3,
@@ -27,14 +29,12 @@ import {
   TimeIntervalCollectionProperty,
   ColorMaterialProperty,
   createWorldTerrainAsync,
+  Ion,
 } from 'cesium'
 import IGCParser, { BRecord } from 'igc-parser'
 import { GscWaypoints, type Waypoint } from './lib.js'
 import { XMLParser } from 'fast-xml-parser'
 import { getDistance } from 'geolib'
-
-// Constant terrain world provider
-// const terrainProvider = createWorldTerrain()
 
 // Helper function to convert IGC position to Cartesian
 function toCartesian(fix: BRecord) {
@@ -44,6 +44,7 @@ function toCartesian(fix: BRecord) {
 export type Props = {
   igc: string
   locationsXml?: string
+  cesiumToken?: string
 }
 
 // Calcualtes when waypoints were hit, given a recorded flight
@@ -69,10 +70,8 @@ function WaypointStartTimes(waypoints: Waypoint[], flight: IGCParser.IGCFile) {
 
 function Waypoints(props: { igc: string; locationsXml: string; flight: IGCParser.IGCFile }) {
   const waypoints = GscWaypoints(props.igc)
-  console.log('Waypoints', waypoints)
   const parser = new XMLParser()
   const jsonObj = parser.parse(props.locationsXml)
-  console.log('locations', jsonObj)
 
   const poi: Waypoint[] = jsonObj.kml.Document.Folder.Placemark.map((w: any) => {
     const [long, lat, alt] = w.Point.coordinates.split(',').map((s: any) => Number(s))
@@ -102,9 +101,6 @@ function Waypoints(props: { igc: string; locationsXml: string; flight: IGCParser
   // Let's add an achieved time to the waypoints
   const achievedTimes = WaypointStartTimes(waypoints, props.flight)
 
-  console.log('Points of Interest parsed', poi)
-  console.log('Waitpoints Parsed', waypoints)
-
   return (
     <>
       <LabelCollection>
@@ -133,7 +129,6 @@ function Waypoints(props: { igc: string; locationsXml: string; flight: IGCParser
 
       {waypoints.map((w, i) => {
         // Render the cylinder column for the waypoint.
-        console.log('Rendering Waypoint')
 
         // Check if the waypoint was ever achieved.  Changed the color when it's achieved
         const achievedTime = achievedTimes[i]
@@ -199,7 +194,11 @@ export default function Igc3DViewer(props: Props) {
 
   // Parse the flight from the igc file
   const flight = IGCParser.parse(props.igc)
-  console.log(flight)
+
+  // Set the world terrain
+  if (props.cesiumToken) {
+    Ion.defaultAccessToken = props.cesiumToken
+  }
 
   // Load up the XML locations
   let waypoints = undefined
@@ -223,6 +222,7 @@ export default function Igc3DViewer(props: Props) {
 
   // Hook the start-time and end-time zoom
   const ref = useRef<CesiumComponentRef<CesiumViewer>>(null)
+
   useEffect(() => {
     const viewer = ref.current?.cesiumElement
     if (viewer === undefined) {
@@ -236,12 +236,14 @@ export default function Igc3DViewer(props: Props) {
     viewer.clock.shouldAnimate = true
     viewer.clock.multiplier = 10
 
-    // Enable depth testing
-    viewer.scene.globe.depthTestAgainstTerrain = true
-
-    // Set the world terrain
-    createWorldTerrainAsync().then((t) => {viewer.terrainProvider = t;})
-
+    createWorldTerrainAsync()
+      .then((t) => {
+        viewer.terrainProvider = t
+      })
+      .catch(
+        // No idea why it throws an error here
+        () => {},
+      )
   }, [start, endTime])
 
   // Calculate the line that should show below the pilot, roughly around their current time
@@ -272,6 +274,8 @@ export default function Igc3DViewer(props: Props) {
 
   return (
     <Viewer style={{ height: '100%' }} ref={ref}>
+      <Scene />
+      <Globe depthTestAgainstTerrain={true} />
       {waypoints && waypoints}
       <Entity
         name={flight.pilot || 'Pilot'}
