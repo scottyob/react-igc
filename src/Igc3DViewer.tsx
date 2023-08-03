@@ -242,8 +242,9 @@ export default function Igc3DViewer(props: Props) {
       })
       .catch(
         // No idea why it throws an error here
-        () => {
-          console.debug('Error when setting terrain provider.. Seems to work anyway')
+        (err) => {
+          console.log("Wut");
+          console.debug('yeah, Error when setting terrain provider.. Seems to work anyway: ', err);
         },
       )
   }, [start, endTime])
