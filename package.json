@@ -1,6 +1,6 @@
 {
   "name": "@scottyob/react-igc",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "A react component for viewing a flight (igc file)",
   "homepage": "https://github.com/scottyob/react-igc",
   "types": "./dist/esm/Igc3DViewer.d.ts",
